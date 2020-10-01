@@ -15,6 +15,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.RejectedExecutionException;
+import java.text.DateFormat;
+import java.util.Date;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.TimeZone;
 
 public class PartialHTTP1Server {
 
@@ -38,7 +43,7 @@ public class PartialHTTP1Server {
 
 			while(true){
 				//try{
-					System.out.println("Thread count: " + pool.getPoolSize());
+					//System.out.println("Thread count: " + pool.getPoolSize());
 					
 					Socket clientSocket = serverSocket.accept();
 					
@@ -48,7 +53,7 @@ public class PartialHTTP1Server {
 						PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
 						out.println("503 Service Unavailable");
 					}	
-					System.out.println("Active count: " + pool.getActiveCount());
+					//System.out.println("Active count: " + pool.getActiveCount());
 			
 
 					/**
@@ -102,13 +107,9 @@ public class Connection implements Runnable {
 	}
 
 	public void run(){
+		
 		try{
-		Thread.sleep(5000);
-		}catch(Exception e){
-			System.out.println("problem?");
-		}
-
-		try{
+			
 			String input = this.in.readLine();//READ COMMAND FROM CLIENT
 			String command = "";
 			File stringRequestURI;
@@ -196,13 +197,21 @@ public class Connection implements Runnable {
 				return;
 				
 			}
-			System.out.println("REACHED END, NO ERRORS!");
+			
+			//System.out.println("REACHED END, NO ERRORS!");
+
+			if(command.equals("GET") || command.equals("POST")){
+				getOrPost(input, stringRequestURI);
+			}else if(command.equals("HEAD")){
+				head(input, stringRequestURI);
+			}
 			
 			
 			
 			s.close();
-			System.out.println("closed");
-		}catch(Exception e){
+			
+		}catch(IOException e){
+			System.out.println("Exception");
 		}
 	}
 	
@@ -217,6 +226,90 @@ public class Connection implements Runnable {
 		}catch(Exception e){
 			
 		}
+	}
+
+	public void getOrPost(String input, File requestURI){
+		//first, determine if the header request If-Modified-Since is included
+		String headerRequestDate = "";
+		Date ifModifiedSinceDate = new Date();
+
+		String requestHeader = "";
+		
+		
+			try{
+				if(this.in.ready()){
+					requestHeader = this.in.readLine();
+					
+				}
+			}catch(IOException e){
+				System.out.println("Exception");
+
+			}
+		
+		try{
+			if(requestHeader.substring(0, 17).equals("If-Modified-Since")){
+				headerRequestDate = requestHeader.substring(19);//17 is the colon after If-Modified-Since, 18 is the space, 19 should be the first char of the date	
+			}				
+			
+					
+			
+		}catch(IndexOutOfBoundsException e){
+
+			//header is insufficient length, do a normal GET or POST
+		}catch(SecurityException e){
+			sendError(403); //forbidden error
+			return;
+		}catch(NullPointerException e){
+			System.out.println("Null pointer Exception");
+		}
+		
+		if(headerRequestDate.length() > 1){
+			
+			try{
+				SimpleDateFormat sdf = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz");
+				sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
+				ifModifiedSinceDate = sdf.parse(headerRequestDate);
+			}catch(ParseException e){
+				//System.out.println("seriously?");
+				headerRequestDate = "";//if the parse method throws an exception, the date was invalid, do normal get or post function, change the headerRequestDate back to empty to signal this
+			}catch(NullPointerException e){
+				//System.out.println("a diff exception?");
+			}catch(IllegalArgumentException e){
+				//System.out.println("third one");
+			}
+		}
+
+		/**
+		if(headerRequestDate.length() == 0){
+			System.out.println("no, or invalid header");
+		}else{
+			
+			System.out.println(ifModifiedSinceDate.getTime());
+		}
+		*/
+		//At this point if there is no or invalid header, headerRequestDate is empty, otherwise it has the date
+		
+		//if last modified date is less than or equal ifModifiedSinceDate, send expires date and error 304
+
+		if(headerRequestDate.length() > 0){//we use the length of headerRequestDate to check if there was a valid header request
+			if(ifModifiedSinceDate.getTime() <= requestURI.lastModified()){
+				System.out.println("Expires: Sat, 21 Jul 2021 11:00:00 GMT\r\n");
+				sendError(304);
+				return;
+			}
+		}
+
+		//If the If-modified-since header is not there, or the file has been modified since, execute get or post normally...
+		
+
+		
+			
+		
+	}
+	
+	public void head(String input, File requestURI){
+		
+
 	}
 
 

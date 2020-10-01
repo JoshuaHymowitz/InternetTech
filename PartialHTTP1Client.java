@@ -18,8 +18,8 @@ public class PartialHTTP1Client {
 			PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
             		BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 			System.out.println("Connection Established");
-			out.println("GET test.txt HTTP/0.9");//THIS IS WHERE WE WOULD SEND THE COMMAND
-
+			out.println("GET test.txt HTTP/1.0\nIf-Modified-Since: Thu, 1 Oct 2020 01:30:00 GMT");//THIS IS WHERE WE WOULD SEND THE COMMAND
+			//Thu, 1 Oct 2020 01:30:00 EDT
 			System.out.println(in.readLine());
 			//socket.close();
 			
